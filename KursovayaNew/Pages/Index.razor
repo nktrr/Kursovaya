@@ -1,0 +1,110 @@
+﻿@page "/"
+@using KursovayaNew.Data
+@using System.IO
+@inject DecryptService DecryptService 
+@inject HttpClient client;
+@inject IJSRuntime js
+
+
+
+<div class="container">
+
+    <div class="main">
+        <div class="inputBlock">
+            <h4>Введите текст</h4>
+            <textarea class="encryptionInput" @bind="textAreaValue"> </textarea>
+            <h4>Или</h4>
+            <InputFile OnChange ="LoadFiles"/>
+            <input type="file" name="uploadFile" accept=".docx,.txt" onChange="LoadAndCreateByteArray"/>
+            <p @bind="arrayLen"></p>
+        </div>
+        <p>Ключ</p>
+        <textarea class="keyInput" @bind="key"> </textarea>
+        <div class="encryptionButtons">
+            <button class="decryptButton" @onclick = "DecryptButtonClick">Расшифровать</button>
+            <button class="encryptButton">Зашифровать</button>
+        </div>
+        <div hidden="@isResultsHidden">
+            <textarea class="encryptionOutput" @bind="textResult"> </textarea>
+        </div>
+    </div>
+</div>
+
+
+@code{
+    private bool isResultsHidden {get;set;} = true;
+    private string temp {get;set;} = "some text";
+    private string textAreaValue { get; set; }
+    private string result { get; set; }
+    private string key { get; set; } = "";
+    private string textResult { get; set; }
+    private int arrayLen {get{ return fileBytes.Length; }}
+
+
+    async void DecryptButtonClick()
+    {
+        if(!String.IsNullOrEmpty(textAreaValue))
+        {
+            textResult = await DecryptService.GetDecryptedString(textAreaValue, key);
+        }
+        else if (loadedFiles.Count != 0)
+        {
+            foreach (var x in loadedFiles)
+            {
+                byte[] result = await DecryptService.DecryptFile(fileBytes, key, fileExtension);
+                await SaveAs(js, "decrypt.txt", result);
+            }
+        }
+    }
+
+    public async static Task SaveAs(IJSRuntime js, string filename, byte[] data)
+    {
+        await js.InvokeAsync<object>(
+            "saveAsFile",
+            filename,
+            Convert.ToBase64String(data));
+    }   
+
+
+    private Dictionary<IBrowserFile, string> loadedFiles = new Dictionary<IBrowserFile, string>();
+    private long maxFileSize = 1024 * 2000;
+    private int maxAllowedFiles = 1;
+    private bool isLoading;
+    string exceptionMessage;
+    byte[] fileBytes = default(byte[]);
+    string fileExtension;
+
+    async Task LoadFiles(InputFileChangeEventArgs e)
+    {
+        isLoading = true;
+        loadedFiles.Clear();
+        exceptionMessage = string.Empty;
+        string[] fileNameSplitted = e.File.Name.Split('.');
+        fileExtension = fileNameSplitted[fileNameSplitted.Length - 1];
+        try
+        {
+            foreach (var file in e.GetMultipleFiles(maxAllowedFiles))
+            {
+                using var reader = new StreamReader(file.OpenReadStream(maxFileSize));
+                {
+                    using (var memstream = new MemoryStream())
+                    {
+                        await reader.BaseStream.CopyToAsync(memstream);
+                        fileBytes = memstream.ToArray();
+
+                    }
+                   loadedFiles.Add(file, await reader.ReadToEndAsync()); 
+                }
+                
+            }
+        }
+        catch (Exception ex)
+        {
+           Console.WriteLine(ex.Message);
+        }
+
+        isLoading = false;
+    }
+}
+
+

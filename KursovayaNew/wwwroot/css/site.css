@@ -1,0 +1,72 @@
+@import url('open-iconic/font/css/open-iconic-bootstrap.min.css');
+
+.container {
+    margin: 0 auto;
+    padding: 0;
+}
+
+.main {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.keyInput {
+    width: 40%;
+    margin-bottom: 2em;
+}
+
+.inputBlock {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 2em;
+    align-items: center;
+    justify-content: center;
+}
+
+.encryptionInput {
+    height: 15em;
+    width: 30em;
+}
+
+.encryptionButtons {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 2em 0 2em;
+}
+
+.decryptButton {
+    margin-right: 1em;
+}
+
+.encryptButton {
+    margin-left: 1em;
+}
+
+.output {
+    display: flex;
+    flex-direction: column;
+}
+
+.encryptionOutput {
+    margin-top: 2em;
+    height: 15em;
+    width: 30em;
+}
+
+.saveButtons {
+    display: flex;
+    justify-content: space-around;
+    padding: 0 2em 0 2em;
+    margin-top: 2em;
+}
+
+.saveTxtButton {
+    margin-right: 1em;
+}
+
+.saveDocxButton {
+    margin-left: 1em;
+}
+
