@@ -1,7 +1,10 @@
 ﻿@page "/"
 @using KursovayaNew.Data
 @using System.IO
+@using System.Text
 @inject DecryptService DecryptService 
+@inject EncryptService EncryptService
+@inject ReadService ReadService
 @inject HttpClient client;
 @inject IJSRuntime js
 
@@ -14,18 +17,18 @@
             <h4>Введите текст</h4>
             <textarea class="encryptionInput" @bind="textAreaValue"> </textarea>
             <h4>Или</h4>
-            <InputFile OnChange ="LoadFiles"/>
-            <input type="file" name="uploadFile" accept=".docx,.txt" onChange="LoadAndCreateByteArray"/>
-            <p @bind="arrayLen"></p>
+            <InputFile OnChange ="LoadFiles" accept=".txt,.docx"/>
         </div>
         <p>Ключ</p>
         <textarea class="keyInput" @bind="key"> </textarea>
         <div class="encryptionButtons">
             <button class="decryptButton" @onclick = "DecryptButtonClick">Расшифровать</button>
-            <button class="encryptButton">Зашифровать</button>
+            <button class="encryptButton" @onclick = "EncryptButtonClick">Зашифровать</button>
         </div>
-        <div hidden="@isResultsHidden">
+        <div hidden="@isResultsHidden" class="results">
             <textarea class="encryptionOutput" @bind="textResult"> </textarea>
+            <button class = "textToTxtButton" @onclick = "SaveTextToTxt">Сохранить как txt</button>
+            <button class = "saveDocxButton" @onclick = "SaveDocx" hidden ="@(!isDocx)">Сохранить как docx</button>
         </div>
     </div>
 </div>
@@ -33,28 +36,91 @@
 
 @code{
     private bool isResultsHidden {get;set;} = true;
-    private string temp {get;set;} = "some text";
     private string textAreaValue { get; set; }
     private string result { get; set; }
     private string key { get; set; } = "";
     private string textResult { get; set; }
-    private int arrayLen {get{ return fileBytes.Length; }}
+    private byte[] modifiedFile;
+    private Dictionary<IBrowserFile, string> loadedFiles = new Dictionary<IBrowserFile, string>();
+    private long maxFileSize = 1024 * 2000;
+    private int maxAllowedFiles = 1;
+    private bool isLoading;
+    string exceptionMessage;
+    byte[] fileBytes = default(byte[]);
+    string fileExtension;
+    string readedString;
+    bool isDocx = false;
 
 
     async void DecryptButtonClick()
     {
-        if(!String.IsNullOrEmpty(textAreaValue))
+        if (readedString != textAreaValue)
+        {
+             loadedFiles.Clear();
+            isDocx = false;
+        }
+        if(!String.IsNullOrEmpty(textAreaValue) && loadedFiles.Count == 0)
         {
             textResult = await DecryptService.GetDecryptedString(textAreaValue, key);
+            isResultsHidden = false;
         }
         else if (loadedFiles.Count != 0)
         {
             foreach (var x in loadedFiles)
             {
                 byte[] result = await DecryptService.DecryptFile(fileBytes, key, fileExtension);
-                await SaveAs(js, "decrypt.txt", result);
+                modifiedFile = result;
+                if (fileExtension == "txt")
+                {
+                    textResult = System.Text.UTF8Encoding.Default.GetString(result,0, result.Length);
+                }
+                else if (fileExtension == "docx")
+                {
+                    textResult = await DecryptService.GetDecryptedString(textAreaValue, key);
+                }
             }
+            isResultsHidden = false;
         }
+    }
+    async void EncryptButtonClick()
+    {
+        if (readedString != textAreaValue)
+        {
+            loadedFiles.Clear();
+            isDocx = false;
+        }
+        if(!String.IsNullOrEmpty(textAreaValue) && loadedFiles.Count == 0)
+        {
+            textResult = await EncryptService.GetEncryptedString(textAreaValue, key);
+            isResultsHidden = false;
+        }
+        else if (loadedFiles.Count != 0)
+        {
+            foreach (var x in loadedFiles)
+            {
+                byte[] result = await EncryptService.EncryptFile(fileBytes, key, fileExtension);
+                modifiedFile = result;
+                //if (fileExtension == "txt") await SaveAs(js, "decrypt.txt", result);
+                if (fileExtension == "txt")
+                {
+                    textResult = System.Text.UTF8Encoding.Default.GetString(result,0, result.Length);
+                }
+                else if (fileExtension == "docx")
+                {
+                    textResult = await EncryptService.GetEncryptedString(textAreaValue, key);
+                }
+            }
+            isResultsHidden = false;
+        }
+    }
+    async void SaveTextToTxt()
+    {
+        await SaveAs(js, "decrypt.txt", System.Text.Encoding.UTF8.GetBytes(textResult));
+    }
+
+    async void SaveDocx()
+    {
+        await SaveAs(js, "decrypt.docx", modifiedFile);
     }
 
     public async static Task SaveAs(IJSRuntime js, string filename, byte[] data)
@@ -66,13 +132,6 @@
     }   
 
 
-    private Dictionary<IBrowserFile, string> loadedFiles = new Dictionary<IBrowserFile, string>();
-    private long maxFileSize = 1024 * 2000;
-    private int maxAllowedFiles = 1;
-    private bool isLoading;
-    string exceptionMessage;
-    byte[] fileBytes = default(byte[]);
-    string fileExtension;
 
     async Task LoadFiles(InputFileChangeEventArgs e)
     {
@@ -83,6 +142,7 @@
         fileExtension = fileNameSplitted[fileNameSplitted.Length - 1];
         try
         {
+            readedString = "";
             foreach (var file in e.GetMultipleFiles(maxAllowedFiles))
             {
                 using var reader = new StreamReader(file.OpenReadStream(maxFileSize));
@@ -91,18 +151,28 @@
                     {
                         await reader.BaseStream.CopyToAsync(memstream);
                         fileBytes = memstream.ToArray();
+                        if (fileExtension == "txt") readedString += Encoding.UTF8.GetString(fileBytes);
 
                     }
                    loadedFiles.Add(file, await reader.ReadToEndAsync()); 
                 }
-                
+            }
+            if (fileExtension == "txt")
+            {
+                textAreaValue = readedString;
+                isDocx = false;
+            }
+            else if (fileExtension == "docx")
+            {
+                textAreaValue = await ReadService.GetTextFromDocx(fileBytes);
+                readedString = textAreaValue;
+                isDocx = true;
             }
         }
         catch (Exception ex)
         {
            Console.WriteLine(ex.Message);
         }
-
         isLoading = false;
     }
 }

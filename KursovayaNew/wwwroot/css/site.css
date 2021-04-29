@@ -67,6 +67,13 @@
 }
 
 .saveDocxButton {
-    margin-left: 1em;
+    margin-top: 0.5em;
 }
 
+.results{
+    display:flex;
+    flex-direction: column;
+}
+.encryptionOutput{
+    margin-bottom: 1vh;
+}

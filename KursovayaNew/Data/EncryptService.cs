@@ -10,23 +10,23 @@ using System.Threading.Tasks;
 
 namespace KursovayaNew.Data
 {
-    public class DecryptService
+    public class EncryptService
     {
         private Random random = new Random();
-        public Task<string> GetDecryptedString(string text, string key)
+        public Task<string> GetEncryptedString(string text, string key)
         {
             int position = 0;
-            return Task.FromResult(DecryptText(text, key, ref position));
+            return Task.FromResult(EncryptText(text, key, ref position));
         }
 
-        public Task<byte[]> DecryptFile(byte[] sourceBytes, string key, string fileExtension)
+        public Task<byte[]> EncryptFile(byte[] sourceBytes, string key, string fileExtension)
         {
-            if (fileExtension == "txt") return Task.FromResult(DecryptTxt(sourceBytes, key));
-            else if (fileExtension == "docx") return Task.FromResult(DecryptDocx(sourceBytes, key));
+            if (fileExtension == "txt") return Task.FromResult(EncryptTxt(sourceBytes, key));
+            else if (fileExtension == "docx") return Task.FromResult(EncryptDocx(sourceBytes, key));
             throw new CryptoException();
         }
 
-        private byte[] DecryptDocx(byte[] sourceBytes, string key)
+        private byte[] EncryptDocx(byte[] sourceBytes, string key)
         {
             string fileName = random.Next(0, 100000000).ToString();
             string tempFilePath = "tempFiles/" + fileName + ".docx";
@@ -39,6 +39,7 @@ namespace KursovayaNew.Data
             try
             {
                 XWPFDocument doc = new XWPFDocument(OPCPackage.Open(tempFilePath));
+
                 int position = 0;
                 foreach (XWPFParagraph paragraph in doc.Paragraphs)
                 {
@@ -50,7 +51,7 @@ namespace KursovayaNew.Data
                             string text = r.GetText(0);
                             if (text != null)
                             {
-                                text = DecryptText(text, key, ref position);
+                                text = EncryptText(text, key, ref position);
                                 r.SetText(text, 0);
                             }
                         }
@@ -73,7 +74,7 @@ namespace KursovayaNew.Data
                                         string text = r.GetText(0);
                                         if (text != null)
                                         {
-                                            text = DecryptText(text, key, ref position);
+                                            text = EncryptText(text, key, ref position);
                                             r.SetText(text, 0);
                                         }
                                     }
@@ -101,7 +102,7 @@ namespace KursovayaNew.Data
             }
         }
 
-        private byte[] DecryptTxt(byte[] sourceBytes, string key)
+        private byte[] EncryptTxt(byte[] sourceBytes, string key)
         {
             String fileName = random.Next(0, 100000000).ToString();
             string tempFilePath = "tempFiles/" + fileName + ".txt";
@@ -111,38 +112,38 @@ namespace KursovayaNew.Data
             }
             string text = File.ReadAllText(tempFilePath);
             int position = 0;
-            text = DecryptText(text, key, ref position);
+            text = EncryptText(text, key, ref position);
             File.WriteAllText(tempFilePath, text);
             byte[] newFile = File.ReadAllBytes(tempFilePath);
             File.Delete(tempFilePath);
             return newFile;
         }
 
-        private string DecryptText(string text, string key, ref int position)
+        private string EncryptText(string text, string key, ref int position)
         {
             string alphabet = "абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ";
             if (key == "") key = "скорпион";
             key = key.ToLower();
-            string decrypted = "";
+            string encrypted = "";
             foreach (char ch in text)
             {
-                if (alphabet.Contains(ch))
+                if (alphabet.Contains(Char.ToLower(ch)))
                 {
                     bool isUpper = false;
                     if (Char.IsUpper(ch)) isUpper = true;
                     char c = Char.ToLower(ch);
                     int charPosition = alphabet.IndexOf(c);
                     int keyPosition = alphabet.IndexOf(key[position]);
-                    int dectyptedCharPosition = charPosition - keyPosition;
-                    if (dectyptedCharPosition < 0) dectyptedCharPosition += 33;
-                    if (isUpper) decrypted += Char.ToUpper(alphabet[dectyptedCharPosition]);
-                    else decrypted += alphabet[dectyptedCharPosition];
+                    int enctyptedCharPosition = charPosition + keyPosition;
+                    if (enctyptedCharPosition >= 33) enctyptedCharPosition = enctyptedCharPosition - 33;
+                    if (isUpper) encrypted += Char.ToUpper(alphabet[enctyptedCharPosition]);
+                    else encrypted += alphabet[enctyptedCharPosition];
                     position++;
                     if (position >= key.Length) position = 0;
                 }
-                else decrypted += ch;
+                else encrypted += ch;
             }
-            return decrypted;
+            return encrypted;
         }
     }
 }

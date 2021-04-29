@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace KursovayaNew
 {
-    public class DecryptException : Exception
+    public class CryptoException : Exception
     {
     }
 }
